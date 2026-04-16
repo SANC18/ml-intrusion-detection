@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Intrusion Detection System</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; }
+
+        /* ── Header ── */
+        .header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 { font-size: 20px; color: #58a6ff; }
+        .header .status {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px; color: #3fb950;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #3fb950;
+               animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        /* ── Layout ── */
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+        .grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+
+        /* ── Cards ── */
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .card h2 { font-size: 14px; color: #8b949e; margin-bottom: 16px;
+                   text-transform: uppercase; letter-spacing: .05em; }
+
+        /* ── Stat cards ── */
+        .stat-card { text-align: center; }
+        .stat-value { font-size: 32px; font-weight: 600; margin-bottom: 4px; }
+        .stat-label { font-size: 12px; color: #8b949e; }
+        .stat-card.blue .stat-value { color: #58a6ff; }
+        .stat-card.red .stat-value { color: #f85149; }
+        .stat-card.green .stat-value { color: #3fb950; }
+        .stat-card.yellow .stat-value { color: #d29922; }
+
+        /* ── Form ── */
+        .form-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 11px; color: #8b949e; margin-bottom: 4px; }
+        .form-group input {
+            width: 100%; padding: 6px 8px;
+            background: #0d1117; border: 1px solid #30363d;
+            border-radius: 4px; color: #c9d1d9; font-size: 12px;
+        }
+        .form-group input:focus { outline: none; border-color: #58a6ff; }
+        .form-row { display: flex; gap: 12px; align-items: center; }
+        select {
+            padding: 8px 12px; background: #0d1117;
+            border: 1px solid #30363d; border-radius: 4px;
+            color: #c9d1d9; font-size: 13px; cursor: pointer;
+        }
+        .btn {
+            padding: 8px 20px; border: none; border-radius: 4px;
+            cursor: pointer; font-size: 13px; font-weight: 500;
+        }
+        .btn-primary { background: #238636; color: #fff; }
+        .btn-primary:hover { background: #2ea043; }
+        .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+        .btn-secondary:hover { background: #30363d; }
+
+        /* ── Result badge ── */
+        .result-box {
+            padding: 12px 16px; border-radius: 6px; margin-top: 12px;
+            display: none; font-size: 14px; font-weight: 500;
+        }
+        .result-attack { background: rgba(248,81,73,.15); border: 1px solid #f85149; color: #f85149; }
+        .result-normal { background: rgba(63,185,80,.15); border: 1px solid #3fb950; color: #3fb950; }
+
+        /* ── Alert table ── */
+        .alert-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .alert-table th {
+            text-align: left; padding: 8px 12px; color: #8b949e;
+            border-bottom: 1px solid #21262d; font-weight: 500;
+        }
+        .alert-table td { padding: 8px 12px; border-bottom: 1px solid #21262d; }
+        .alert-table tr:hover td { background: #21262d; }
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 99px;
+            font-size: 11px; font-weight: 500;
+        }
+        .badge-attack { background: rgba(248,81,73,.2); color: #f85149; }
+        .badge-normal { background: rgba(63,185,80,.2); color: #3fb950; }
+        .table-scroll { max-height: 300px; overflow-y: auto; }
+
+        /* ── Model info ── */
+        .model-stat { display: flex; justify-content: space-between;
+                      padding: 8px 0; border-bottom: 1px solid #21262d; font-size: 13px; }
+        .model-stat:last-child { border-bottom: none; }
+        .model-stat .val { color: #3fb950; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>ML-Based Intrusion Detection System</h1>
+    <div class="status">
+        <div class="dot"></div>
+        <span>Models Active — Random Forest &amp; XGBoost</span>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- Stat cards -->
+    <div class="grid-4">
+        <div class="card stat-card blue">
+            <div class="stat-value" id="totalPredictions">0</div>
+            <div class="stat-label">Total Predictions</div>
+        </div>
+        <div class="card stat-card red">
+            <div class="stat-value" id="attacksDetected">0</div>
+            <div class="stat-label">Attacks Detected</div>
+        </div>
+        <div class="card stat-card green">
+            <div class="stat-value" id="normalTraffic">0</div>
+            <div class="stat-label">Normal Traffic</div>
+        </div>
+        <div class="card stat-card yellow">
+            <div class="stat-value" id="attackRate">0%</div>
+            <div class="stat-label">Attack Rate</div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+
+        <!-- Prediction form -->
+        <div class="card">
+            <h2>Predict Network Traffic</h2>
+            <div class="form-grid" id="featureForm">
+                {% for feature in feature_names %}
+                <div class="form-group">
+                    <label>{{ feature }}</label>
+                    <input type="number" step="any" id="feat_{{ loop.index0 }}"
+                           name="{{ feature }}" value="0" placeholder="0">
+                </div>
+                {% endfor %}
+            </div>
+            <div class="form-row">
+                <select id="modelSelect">
+                    <option value="random_forest">Random Forest (99.98%)</option>
+                    <option value="xgboost">XGBoost (99.98%)</option>
+                </select>
+                <button class="btn btn-primary" onclick="predict()">Predict</button>
+                <button class="btn btn-secondary" onclick="fillSample('attack')">Sample Attack</button>
+                <button class="btn btn-secondary" onclick="fillSample('normal')">Sample Normal</button>
+            </div>
+            <div class="result-box" id="resultBox"></div>
+        </div>
+
+        <!-- Chart -->
+        <div class="card">
+            <h2>Prediction Distribution</h2>
+            <canvas id="pieChart" height="200"></canvas>
+        </div>
+    </div>
+
+    <div class="grid-3">
+
+        <!-- Alert log -->
+        <div class="card">
+            <h2>Live Alert Log <span style="font-size:11px;color:#8b949e;font-weight:400;text-transform:none;">(last 50)</span></h2>
+            <div class="table-scroll">
+                <table class="alert-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Result</th>
+                            <th>Confidence</th>
+                            <th>Model</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertBody">
+                        <tr><td colspan="4" style="color:#8b949e;text-align:center;padding:20px;">
+                            No predictions yet. Use the form above.
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Model stats -->
+        <div class="card">
+            <h2>Model Performance</h2>
+            <div class="model-stat"><span>Random Forest — Accuracy</span><span class="val">99.98%</span></div>
+            <div class="model-stat"><span>Random Forest — F1-Score</span><span class="val">99.98%</span></div>
+            <div class="model-stat"><span>XGBoost — Accuracy</span><span class="val">99.98%</span></div>
+            <div class="model-stat"><span>XGBoost — F1-Score</span><span class="val">99.98%</span></div>
+            <div class="model-stat"><span>Decision Tree — Accuracy</span><span class="val">99.96%</span></div>
+            <div class="model-stat"><span>KNN — Accuracy</span><span class="val">99.92%</span></div>
+            <div class="model-stat"><span>SVM — Accuracy</span><span class="val">99.61%</span></div>
+            <div class="model-stat"><span>Dataset</span><span class="val">KDD Cup 99</span></div>
+            <div class="model-stat"><span>Features used</span><span class="val">20 (selected)</span></div>
+            <div class="model-stat"><span>SMOTE applied</span><span class="val">Yes</span></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ── Chart setup ──────────────────────────────────────────────────────────────
+const ctx = document.getElementById('pieChart').getContext('2d');
+const pieChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Normal', 'Attack'],
+        datasets: [{
+            data: [0, 0],
+            backgroundColor: ['#3fb950', '#f85149'],
+            borderColor: '#161b22',
+            borderWidth: 3
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { labels: { color: '#c9d1d9' } }
+        }
+    }
+});
+
+// ── Sample data ──────────────────────────────────────────────────────────────
+const featureNames = {{ feature_names | tojson }};
+
+const samples = {
+    attack: { count:511, srv_count:511, logged_in:0, protocol_type:0,
+              dst_host_same_src_port_rate:1.0, dst_host_count:255,
+              same_srv_rate:1.0, dst_host_srv_serror_rate:1.0,
+              serror_rate:1.0, srv_serror_rate:1.0, dst_host_serror_rate:1.0,
+              srv_diff_host_rate:0.0, dst_host_srv_diff_host_rate:0.0,
+              flag:8, service:79, src_bytes:0, dst_bytes:0,
+              dst_host_same_srv_rate:1.0, dst_host_diff_srv_rate:0.0,
+              duration:0 },
+    normal: { count:1, srv_count:1, logged_in:1, protocol_type:1,
+              dst_host_same_src_port_rate:0.0, dst_host_count:9,
+              same_srv_rate:1.0, dst_host_srv_serror_rate:0.0,
+              serror_rate:0.0, srv_serror_rate:0.0, dst_host_serror_rate:0.0,
+              srv_diff_host_rate:0.0, dst_host_srv_diff_host_rate:0.0,
+              flag:8, service:15, src_bytes:181, dst_bytes:5450,
+              dst_host_same_srv_rate:1.0, dst_host_diff_srv_rate:0.0,
+              duration:0 }
+};
+
+function fillSample(type) {
+    const sample = samples[type];
+    featureNames.forEach((name, i) => {
+        const el = document.getElementById(`feat_${i}`);
+        if (el) el.value = sample[name] !== undefined ? sample[name] : 0;
+    });
+}
+
+// ── Predict ──────────────────────────────────────────────────────────────────
+async function predict() {
+    const features = featureNames.map((_, i) => {
+        const el = document.getElementById(`feat_${i}`);
+        return el ? parseFloat(el.value) || 0 : 0;
+    });
+
+    const modelName = document.getElementById('modelSelect').value;
+
+    try {
+        const res = await fetch('/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ features, model: modelName })
+        });
+        const data = await res.json();
+
+        const box = document.getElementById('resultBox');
+        box.style.display = 'block';
+        box.className = `result-box ${data.result === 'ATTACK' ? 'result-attack' : 'result-normal'}`;
+        box.innerHTML = `
+            ${data.result === 'ATTACK' ? '⚠ INTRUSION DETECTED' : '✓ NORMAL TRAFFIC'} —
+            Confidence: ${data.confidence}% |
+            Model: ${modelName === 'random_forest' ? 'Random Forest' : 'XGBoost'} |
+            ${data.timestamp}
+        `;
+
+        updateStats();
+        updateAlerts();
+    } catch (err) {
+        console.error(err);
+        alert('Prediction failed. Is Flask running?');
+    }
+}
+
+// ── Update stats + alerts ────────────────────────────────────────────────────
+async function updateStats() {
+    const res = await fetch('/stats');
+    const data = await res.json();
+
+    document.getElementById('totalPredictions').textContent = data.total_predictions;
+    document.getElementById('attacksDetected').textContent = data.attacks_detected;
+    document.getElementById('normalTraffic').textContent = data.normal_traffic;
+    document.getElementById('attackRate').textContent = data.attack_rate + '%';
+
+    pieChart.data.datasets[0].data = [data.normal_traffic, data.attacks_detected];
+    pieChart.update();
+}
+
+async function updateAlerts() {
+    const res = await fetch('/alerts');
+    const alerts = await res.json();
+
+    const tbody = document.getElementById('alertBody');
+    if (alerts.length === 0) return;
+
+    tbody.innerHTML = alerts.slice().reverse().map(a => `
+        <tr>
+            <td style="color:#8b949e">${a.timestamp}</td>
+            <td><span class="badge ${a.result === 'ATTACK' ? 'badge-attack' : 'badge-normal'}">
+                ${a.result}
+            </span></td>
+            <td>${a.confidence}%</td>
+            <td style="color:#8b949e">${a.model === 'random_forest' ? 'RF' : 'XGB'}</td>
+        </tr>
+    `).join('');
+}
+
+// Auto-refresh stats every 5 seconds
+setInterval(() => { updateStats(); updateAlerts(); }, 5000);
+</script>
+</body>
+</html>
